@@ -1,0 +1,41 @@
+# PhilCard systemd service file
+# Save as /etc/systemd/system/philcard.service
+
+[Unit]
+Description=PhilCard Links Site
+Documentation=https://github.com/philuu/philcard
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/philcard
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutStopSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=philcard
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/philcard/data /var/www/philcard/uploads
+
+[Install]
+WantedBy=multi-user.target
+
+# Commands to enable and start:
+# sudo systemctl daemon-reload
+# sudo systemctl enable philcard
+# sudo systemctl start philcard
+# sudo systemctl status philcard

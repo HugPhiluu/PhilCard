@@ -1,0 +1,75 @@
+# Nginx configuration for PhilCard
+# Save this as /etc/nginx/sites-available/philcard
+
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+    
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Referrer-Policy "strict-origin-when-cross-origin";
+    
+    # Gzip compression
+    gzip on;
+    gzip_types
+        text/plain
+        text/css
+        text/js
+        text/xml
+        text/javascript
+        application/javascript
+        application/json
+        application/xml
+        application/rss+xml
+        application/atom+xml
+        image/svg+xml;
+    
+    # Static files caching
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg)$ {
+        proxy_pass http://localhost:3000;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Main proxy
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # File upload settings for profile pictures
+        client_max_body_size 50M;
+        
+        # Timeout settings
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+    
+    # API rate limiting (optional)
+    location /api/ {
+        limit_req zone=api burst=10 nodelay;
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # File upload settings for API endpoints
+        client_max_body_size 50M;
+    }
+}
+
+# Rate limiting zone (add this to nginx.conf in http block)
+# http {
+#     limit_req_zone $binary_remote_addr zone=api:10m rate=30r/m;
+# }

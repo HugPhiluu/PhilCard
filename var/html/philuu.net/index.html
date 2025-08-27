@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Philuu - Links</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <!-- Profile Header -->
+      <header>
+        <div class="avatar" id="profileAvatar">PU</div>
+        <div class="meta">
+          <h1 id="profileName">Philuu</h1>
+          <p class="lead" id="profileDescription">Developer, creator, and tech enthusiast</p>
+        </div>
+        <div class="profile-controls">
+          <button class="icon-btn" onclick="philCard.showProfileModal()" title="Edit Profile">
+            ✏️
+          </button>
+        </div>
+      </header>
+
+      <!-- Dynamic Links Container -->
+      <div class="links" id="linksContainer">
+        <!-- Links will be rendered by JavaScript -->
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+        <button class="btn" data-action="export">📦 Export</button>
+        <button class="btn" data-action="import">📥 Import</button>
+        <div style="flex: 1;"></div>
+      </div>
+
+      <!-- Footer -->
+      <footer>
+        <div class="small">Built with ❤️ using modern web tech</div>
+        <div class="footer-right">
+          <div class="copyright">© 2025 Philuu</div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Floating Add Button -->
+  <button class="floating-add" title="Add new link">
+    ➕
+  </button>
+
+  <!-- Modal for Adding/Editing Links -->
+  <div class="modal-back">
+    <div class="modal">
+      <h3>Add New Link</h3>
+      
+      <form id="addLinkForm">
+        <div class="form-row">
+          <div class="col">
+            <label for="linkTitle">Title *</label>
+            <input type="text" id="linkTitle" name="title" placeholder="e.g., GitHub" required>
+          </div>
+          <div class="col">
+            <label for="iconName">Icon Name</label>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="text" id="iconName" name="iconName" placeholder="github" value="link" style="flex: 1;">
+              <div id="iconPreview" class="icon-wrap" style="width: 32px; height: 32px; display: none;"></div>
+            </div>
+            <input type="hidden" id="iconType" name="iconType" value="simple">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col">
+            <label for="linkUrl">URL *</label>
+            <input type="url" id="linkUrl" name="url" placeholder="https://github.com/yourname" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col">
+            <label for="linkSubtitle">Description</label>
+            <input type="text" id="linkSubtitle" name="subtitle" placeholder="My code repositories">
+          </div>
+        </div>
+
+        <!-- Quick Icon Presets -->
+        <div style="margin-top: 12px;">
+          <label>Quick presets:</label>
+          <div class="mini" style="margin-top: 6px; flex-wrap: wrap;">
+            <button type="button" class="btn" data-preset="github">GitHub</button>
+            <button type="button" class="btn" data-preset="twitter">Twitter</button>
+            <button type="button" class="btn" data-preset="linkedin">LinkedIn</button>
+            <button type="button" class="btn" data-preset="youtube">YouTube</button>
+            <button type="button" class="btn" data-preset="instagram">Instagram</button>
+            <button type="button" class="btn" data-preset="discord">Discord</button>
+            <button type="button" class="btn" data-preset="twitch">Twitch</button>
+            <button type="button" class="btn" data-preset="spotify">Spotify</button>
+            <button type="button" class="btn" data-preset="email">Email</button>
+            <button type="button" class="btn" data-preset="website">Website</button>
+            <button type="button" class="btn" data-preset="blog">Blog</button>
+            <button type="button" class="btn" data-preset="paypal">PayPal</button>
+          </div>
+          <div class="small" style="margin-top: 8px;">
+            💡 Tip: Use any <a href="https://simpleicons.org/" target="_blank" style="color: var(--accent);">Simple Icons</a> slug name (e.g., "github", "twitter", "linkedin")
+            <br>
+            <button type="button" class="btn" onclick="philCard.refreshIcons()" style="margin-top: 4px; font-size: 11px;">🔄 Refresh Icons</button>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="actions">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Add Link</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Profile Edit Modal -->
+  <div class="modal-back" id="profileModal" style="display: none;">
+    <div class="modal">
+      <h3>Edit Profile</h3>
+      
+      <form id="profileForm">
+        <div class="form-row">
+          <div class="col">
+            <label for="profileNameInput">Name</label>
+            <input type="text" id="profileNameInput" name="name" placeholder="Your name">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col">
+            <label for="profileDescInput">Description</label>
+            <input type="text" id="profileDescInput" name="description" placeholder="Brief description">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col">
+            <label for="profileAvatarText">Avatar Text (fallback)</label>
+            <input type="text" id="profileAvatarText" name="avatar" placeholder="PU" maxlength="3">
+            <div class="small" style="margin-top: 4px;">Short text displayed when no image is uploaded</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="col">
+            <label for="profileAvatarFile">Profile Picture</label>
+            <input type="file" id="profileAvatarFile" accept="image/*" style="margin-bottom: 8px;">
+            <div class="small">JPG, PNG, GIF, WebP, etc. - Upload any size image!</div>
+            <div id="avatarPreview" style="margin-top: 8px; display: none;">
+              <img id="avatarPreviewImg" style="width: 64px; height: 64px; border-radius: 12px; object-fit: cover;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="actions">
+          <button type="button" class="btn" onclick="philCard.hideProfileModal()">Cancel</button>
+          <button type="submit" class="btn primary">Save Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Authentication Modal -->
+  <div class="auth-modal-back" id="authModal" style="display: none;">
+    <div class="modal">
+      <h3>🔒 Admin Authentication</h3>
+      
+      <form id="authForm">
+        <div class="form-row">
+          <div class="col">
+            <label for="authPassword">Password</label>
+            <input type="password" id="authPassword" placeholder="Enter admin password" required>
+          </div>
+        </div>
+
+        <div class="small" style="margin-top: 8px; color: var(--muted);">
+          Enter the admin password to edit this PhilCard
+        </div>
+
+        <!-- Form Actions -->
+        <div class="actions">
+          <button type="button" class="btn" onclick="philCard.hideAuthModal()">Cancel</button>
+          <button type="submit" class="btn primary">🔓 Authenticate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="script.js"></script>
+</body>
+</html>
