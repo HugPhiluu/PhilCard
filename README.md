@@ -5,13 +5,21 @@ A modern, persistent one-page links site that can be deployed on a VPS with full
 ## Features
 
 ✅ **Backend API** - Node.js/Express server for data persistence
+
 ✅ **Database** - JSON file storage (easily upgradeable to PostgreSQL/MongoDB)
+
 ✅ **Authentication** - Secure admin authentication for editing
+
 ✅ **Profile Management** - Edit profile info and upload profile pictures
+
 ✅ **File Upload** - Profile picture upload with automatic cleanup
+
 ✅ **API Endpoints** - REST API for all CRUD operations
+
 ✅ **Data Persistence** - All changes are saved on the server
+
 ✅ **Import/Export** - Backup and restore functionality
+
 ✅ **VPS Ready** - Complete deployment setup
 
 ## Local Development
