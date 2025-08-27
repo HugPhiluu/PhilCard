@@ -2,9 +2,7 @@
 
 A modern, persistent one-page links site that can be deployed on a VPS with full data persistence.
 
-## What's New
-
-Your PhilCard site now includes:
+## Features
 
 ✅ **Backend API** - Node.js/Express server for data persistence
 ✅ **Database** - JSON file storage (easily upgradeable to PostgreSQL/MongoDB)
@@ -72,7 +70,7 @@ PhilCard/
 - **Import/Export** - Backup and restore your data
 - **Icon Integration** - Simple Icons support with live preview
 
-### For Admins
+### For Adminstration
 - **Secure Authentication** - Password-protected admin access
 - **Profile Management** - Edit profile information and upload pictures
 - **File Upload System** - Secure image upload with automatic cleanup
@@ -100,11 +98,29 @@ PhilCard/
 ## Configuration
 
 ### Admin Password
-Default: `philuu2025`
 
-To change:
-1. Generate hash: `node -e "console.log(require('bcryptjs').hashSync('newpassword', 10))"`
-2. Update `data/config.json` with new hash
+**Default password:** `philuu2025`
+
+#### To change the admin password:
+
+**Recommended:**  
+Use the provided script to set a new password and update the hash automatically:
+
+```bash
+node setup-password.js
+```
+Follow the prompts to enter your new password. This will update `data/config.json` with the new hash.
+
+**Quick method:**  
+If you want to generate a hash quickly without prompts:
+
+```bash
+node quick-password.js "yournewpassword"
+```
+Copy the generated hash and manually update the `adminPasswordHash` field in `data/config.json`.
+
+**Note:**  
+Never store plain text passwords. Always use a secure hash as shown above.
 
 ### Profile Settings
 Edit `data/config.json`:
@@ -173,25 +189,6 @@ If you have an existing PhilCard with localStorage data:
 3. Import your data using the import button
 
 
-### Profile Management
-- **Edit Profile** - Click the ✏️ button when signed in as admin
-- **Profile Pictures** - Upload images of any reasonable size
-- **Live Preview** - See your image before saving
-- **Automatic Cleanup** - Old profile pictures are automatically removed
-- **Fallback Support** - Text avatars when no image is uploaded
-
-### Enhanced Admin Interface
-- **Profile Controls** - Edit button appears in admin mode
-- **Form Validation** - Smart validation for all inputs
-- **File Management** - Secure image upload system
-- **Notifications** - Success/error messages for all actions
-
-### Technical Improvements
-- **File Upload API** - Dedicated endpoints for profile pictures
-- **Image Processing** - Proper handling of different image formats
-- **Storage Management** - Organized file structure in `/uploads`
-- **Error Handling** - Comprehensive error handling for uploads
-
 ## Troubleshooting
 
 **Port Issues**
@@ -231,4 +228,13 @@ For issues or questions:
 3. Ensure Node.js 18+ is installed
 4. Check file permissions
 
-Your PhilCard is now VPS-ready with full persistence! 🚀
+# Submit an issue
+
+If you encounter bugs or have feature requests, please [open an issue](https://github.com/Philuu/PhilCard/issues) on GitHub.  
+Include details and steps to reproduce the problem for faster assistance.
+
+---
+
+Thank you for reading!
+
+
