@@ -20,6 +20,7 @@ chmod +x setup-vps.sh
 ## Features
 
 - ✅ **Link Management** - Add, edit, delete links with admin authentication
+- ✅ **Drag & Drop Reordering** - Reorder links by dragging handles when authenticated
 - ✅ **Profile Pictures** - Upload and crop images to 1:1 ratio (optimized to 512x512 WebP)
 - ✅ **Data Persistence** - JSON file storage with automatic backups
 - ✅ **Import/Export** - Backup and restore functionality

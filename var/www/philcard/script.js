@@ -7,6 +7,7 @@ class PhilCard {
     this.isAuthenticated = false;
     this.authToken = null;
     this.apiBase = '/api'; // API base URL
+    this.isDragging = false; // Flag to prevent form submissions during drag
     this.init();
   }
 
@@ -138,6 +139,12 @@ class PhilCard {
     const linkControls = document.querySelectorAll('.link-controls');
     linkControls.forEach(control => {
       control.style.display = this.isAuthenticated ? 'flex' : 'none';
+    });
+
+    // Hide/show drag handles
+    const dragHandles = document.querySelectorAll('.drag-handle');
+    dragHandles.forEach(handle => {
+      handle.style.display = this.isAuthenticated ? 'flex' : 'none';
     });
 
     // Show/hide auth button in footer
@@ -303,6 +310,14 @@ class PhilCard {
 
     // Modal controls
     document.addEventListener('click', (e) => {
+      // Block all document clicks during drag
+      if (this.isDragging) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+      
       if (e.target.classList.contains('modal-back')) {
         this.hideModal();
       }
@@ -316,6 +331,13 @@ class PhilCard {
     if (addForm) {
       addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        // Prevent form submission during drag operations
+        if (this.isDragging) {
+          console.log('Form submit blocked during drag operation');
+          return false;
+        }
+        
         if (this.isAuthenticated) {
           await this.handleFormSubmit();
         }
@@ -555,6 +577,12 @@ class PhilCard {
       return;
     }
 
+    // Prevent form submission during drag operations
+    if (this.isDragging) {
+      console.log('Ignoring addLink during drag operation');
+      return;
+    }
+
     const form = document.getElementById('addLinkForm');
     const formData = new FormData(form);
     
@@ -641,14 +669,17 @@ class PhilCard {
 
     // Render links with placeholders first
     container.innerHTML = this.links.map(link => `
-      <a href="${this.escapeHtml(link.url)}" class="link-btn" target="_blank" rel="noopener">
-        <div class="icon-wrap" id="icon-${link.id}">
-          ${this.getDefaultIconHtml()}
-        </div>
-        <div style="flex: 1;">
-          <div class="label">${this.escapeHtml(link.title)}</div>
-          ${link.subtitle ? `<div class="sub">${this.escapeHtml(link.subtitle)}</div>` : ''}
-        </div>
+      <div class="link-item" data-link-id="${link.id}">
+        ${this.isAuthenticated ? `<div class="drag-handle" title="Drag to reorder">⋮⋮</div>` : ''}
+        <a href="${this.escapeHtml(link.url)}" class="link-btn" target="_blank" rel="noopener">
+          <div class="icon-wrap" id="icon-${link.id}">
+            ${this.getDefaultIconHtml()}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="label">${this.escapeHtml(link.title)}</div>
+            ${link.subtitle ? `<div class="sub">${this.escapeHtml(link.subtitle)}</div>` : ''}
+          </div>
+        </a>
         <div class="link-controls">
           <button class="icon-btn" onclick="event.preventDefault(); event.stopPropagation(); philCard.editLink('${link.id}')" title="Edit">
             ✏️
@@ -657,11 +688,16 @@ class PhilCard {
             🗑️
           </button>
         </div>
-      </a>
+      </div>
     `).join('');
 
     // Load icons asynchronously
     this.links.forEach(link => this.loadAndUpdateIcon(link));
+    
+    // Initialize drag and drop if authenticated
+    if (this.isAuthenticated) {
+      this.initializeDragAndDrop();
+    }
     
     // Update UI for auth state after rendering
     this.updateUIForAuthState();
@@ -900,6 +936,12 @@ class PhilCard {
 
   // Handle form submission properly
   async handleFormSubmit() {
+    // Prevent form submission during drag operations
+    if (this.isDragging) {
+      console.log('Ignoring form submit during drag operation');
+      return;
+    }
+    
     const form = document.getElementById('addLinkForm');
     const editId = form.dataset.editId;
     
@@ -1395,6 +1437,262 @@ class PhilCard {
     if (preview && previewImg) {
       previewImg.src = dataUrl;
       preview.style.display = 'block';
+    }
+  }
+
+  // Drag and Drop Implementation
+  initializeDragAndDrop() {
+    const container = document.querySelector('.links');
+    if (!container) return;
+
+    // Add sortable attributes to the container
+    container.classList.add('sortable-container');
+
+    const linkItems = container.querySelectorAll('.link-item');
+    linkItems.forEach(linkItem => {
+      this.addDragListeners(linkItem);
+    });
+  }
+
+  addDragListeners(element) {
+    const dragHandle = element.querySelector('.drag-handle');
+    
+    if (dragHandle) {
+      // Make the drag handle itself draggable
+      dragHandle.draggable = true;
+      
+      // Prevent navigation when clicking on drag handle
+      dragHandle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      
+      // Handle drag start on the handle, but drag the whole element
+      dragHandle.addEventListener('dragstart', (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        // Set dragging flag to prevent any form submissions
+        this.isDragging = true;
+        
+        this.draggedElement = element; // Drag the whole link item
+        this.draggedElement.classList.add('dragging');
+        
+        // Disable pointer events on all buttons during drag
+        document.querySelectorAll('.icon-btn, .link-btn').forEach(btn => {
+          btn.style.pointerEvents = 'none';
+        });
+        
+        // Set drag data
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', element.dataset.linkId);
+        
+        // Add visual feedback
+        const container = document.querySelector('.links');
+        container.classList.add('drag-active');
+        
+        console.log('Drag started for:', element.dataset.linkId);
+      });
+      
+      dragHandle.addEventListener('dragend', (e) => {
+        this.handleDragEnd(e);
+      });
+    }
+
+    // Drop event listeners on the link items
+    element.addEventListener('dragover', (e) => this.handleDragOver(e));
+    element.addEventListener('drop', (e) => this.handleDrop(e));
+    element.addEventListener('dragenter', (e) => this.handleDragEnter(e));
+    element.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+    
+    // Prevent any clicks during drag operations
+    element.addEventListener('click', (e) => {
+      if (this.isDragging) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('Click blocked during drag operation');
+        return false;
+      }
+    }, true); // Use capture phase to catch early
+  }
+
+  handleDragEnd(e) {
+    console.log('Drag ended');
+    this.cleanupDragStyles();
+  }
+
+  handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  handleDragEnter(e) {
+    e.preventDefault();
+    const target = e.currentTarget;
+    if (target !== this.draggedElement && target.classList.contains('link-item')) {
+      target.classList.add('drag-over');
+    }
+  }
+
+  handleDragLeave(e) {
+    const target = e.currentTarget;
+    // Only remove if we're really leaving (not going to a child element)
+    if (!target.contains(e.relatedTarget)) {
+      target.classList.remove('drag-over');
+    }
+  }
+
+  handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation(); // Stop all event propagation
+    
+    const dropTarget = e.currentTarget;
+    dropTarget.classList.remove('drag-over');
+    
+    console.log('Drop on:', dropTarget.dataset.linkId);
+    console.log('Dragged element:', this.draggedElement?.dataset.linkId);
+    
+    // Only proceed if we have a valid dragged element and it's different from drop target
+    if (this.draggedElement && dropTarget !== this.draggedElement && dropTarget.classList.contains('link-item')) {
+      console.log('Performing reorder...');
+      this.performReorder(this.draggedElement, dropTarget);
+    } else {
+      console.log('Drop ignored - same element or invalid target');
+    }
+    
+    this.cleanupDragStyles();
+    
+    // Return false to prevent any further event handling
+    return false;
+  }
+
+  performReorder(draggedElement, dropTarget) {
+    if (!draggedElement || !dropTarget) {
+      console.error('Invalid elements for reorder:', draggedElement, dropTarget);
+      return;
+    }
+    
+    const container = document.querySelector('.links');
+    const allItems = Array.from(container.children);
+    
+    const draggedIndex = allItems.indexOf(draggedElement);
+    const targetIndex = allItems.indexOf(dropTarget);
+    
+    console.log('Reordering:', {
+      draggedId: draggedElement.dataset.linkId,
+      targetId: dropTarget.dataset.linkId,
+      draggedIndex,
+      targetIndex
+    });
+    
+    if (draggedIndex !== -1 && targetIndex !== -1 && draggedIndex !== targetIndex) {
+      try {
+        // Remove the dragged element
+        draggedElement.remove();
+        
+        // Insert it at the new position
+        if (draggedIndex < targetIndex) {
+          // Moving down: insert after target
+          dropTarget.insertAdjacentElement('afterend', draggedElement);
+        } else {
+          // Moving up: insert before target
+          dropTarget.insertAdjacentElement('beforebegin', draggedElement);
+        }
+        
+        console.log('DOM reorder successful, saving...');
+        // Save the new order
+        this.saveNewOrder();
+        
+        // Re-initialize drag listeners for the moved element
+        this.addDragListeners(draggedElement);
+      } catch (error) {
+        console.error('Error during reorder:', error);
+        this.showNotification('Failed to reorder items', 'error');
+      }
+    } else {
+      console.warn('Invalid reorder indices:', draggedIndex, targetIndex);
+    }
+  }
+
+  cleanupDragStyles() {
+    // Clear dragging flag first
+    this.isDragging = false;
+    
+    document.querySelectorAll('.link-item').forEach(item => {
+      item.classList.remove('dragging', 'drag-over');
+      item.style.cursor = '';
+      // Re-enable any disabled elements
+      item.style.pointerEvents = '';
+    });
+    
+    // Re-enable all buttons
+    document.querySelectorAll('.icon-btn, .link-btn').forEach(btn => {
+      btn.style.pointerEvents = '';
+    });
+    
+    const container = document.querySelector('.links');
+    if (container) {
+      container.classList.remove('drag-active');
+    }
+    
+    this.draggedElement = null;
+    
+    // Clear any pending click events that might have been triggered during drag
+    setTimeout(() => {
+      console.log('Drag cleanup complete');
+    }, 100); // Increased timeout
+  }
+
+  async saveNewOrder() {
+    const container = document.querySelector('.links');
+    const linkElements = container.querySelectorAll('.link-item');
+    
+    // Extract the new order of link IDs
+    const newOrder = Array.from(linkElements).map(element => 
+      element.getAttribute('data-link-id')
+    );
+
+    console.log('Saving new order:', newOrder);
+    console.log('API endpoint:', `${this.apiBase}/links/reorder`);
+    console.log('Auth token:', this.authToken ? 'Present' : 'Missing');
+
+    try {
+      const requestOptions = {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.authToken}`
+        },
+        body: JSON.stringify({ linkIds: newOrder })
+      };
+      
+      console.log('Request options:', requestOptions);
+      
+      const response = await fetch(`${this.apiBase}/links/reorder`, requestOptions);
+
+      console.log('Reorder API response status:', response.status);
+      
+      const data = await response.json();
+      console.log('Reorder API response data:', data);
+
+      if (response.ok && data.success) {
+        // Update local links array to match new order
+        this.links = data.links;
+        this.showNotification('Links reordered successfully!', 'success');
+        console.log('Reorder successful, links updated');
+      } else {
+        console.error('Reorder failed:', data);
+        this.showNotification(data.error || 'Failed to reorder links', 'error');
+        // Reload to revert to original order
+        this.loadLinks();
+      }
+    } catch (error) {
+      console.error('Error saving new order:', error);
+      this.showNotification('Failed to save new order', 'error');
+      // Reload to revert to original order
+      this.loadLinks();
     }
   }
 }

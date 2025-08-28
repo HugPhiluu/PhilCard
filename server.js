@@ -292,6 +292,49 @@ app.post('/api/links', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Reorder links (requires auth) - MUST come before /api/links/:id route
+app.put('/api/links/reorder', authenticateAdmin, async (req, res) => {
+  const { linkIds } = req.body;
+  
+  if (!Array.isArray(linkIds)) {
+    return res.status(400).json({ error: 'linkIds must be an array' });
+  }
+  
+  try {
+    const links = await loadLinks();
+    
+    // Create a map of existing links by ID for quick lookup
+    const linkMap = new Map();
+    links.forEach(link => linkMap.set(link.id.toString(), link));
+    
+    // Reorder links based on the provided order
+    const reorderedLinks = [];
+    linkIds.forEach(id => {
+      const link = linkMap.get(id.toString());
+      if (link) {
+        reorderedLinks.push(link);
+      }
+    });
+    
+    // Add any links that weren't in the reorder list (shouldn't happen normally)
+    links.forEach(link => {
+      if (!linkIds.includes(link.id.toString()) && !linkIds.includes(link.id)) {
+        reorderedLinks.push(link);
+      }
+    });
+    
+    const saved = await saveLinks(reorderedLinks);
+    if (!saved) {
+      return res.status(500).json({ error: 'Failed to save reordered links' });
+    }
+    
+    res.json({ success: true, links: reorderedLinks });
+  } catch (error) {
+    console.error('Error reordering links:', error);
+    res.status(500).json({ error: 'Failed to reorder links' });
+  }
+});
+
 // Update link (requires auth)
 app.put('/api/links/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
