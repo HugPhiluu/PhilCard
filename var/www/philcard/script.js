@@ -311,10 +311,10 @@ class PhilCard {
     // Form submission
     const addForm = document.getElementById('addLinkForm');
     if (addForm) {
-      addForm.addEventListener('submit', (e) => {
+      addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (this.isAuthenticated) {
-          this.handleFormSubmit();
+          await this.handleFormSubmit();
         }
       });
     }
@@ -627,28 +627,7 @@ class PhilCard {
     this.showModal();
   }
 
-  updateLink(id) {
-    const form = document.getElementById('addLinkForm');
-    const formData = new FormData(form);
-    
-    const linkIndex = this.links.findIndex(l => l.id === parseInt(id));
-    if (linkIndex === -1) return;
 
-    this.links[linkIndex] = {
-      ...this.links[linkIndex],
-      title: formData.get('title'),
-      subtitle: formData.get('subtitle'),
-      url: formData.get('url'),
-      iconType: formData.get('iconType') || 'simple',
-      iconName: formData.get('iconName') || 'link'
-    };
-
-    this.saveLinks();
-    this.renderLinks();
-    this.hideModal();
-    this.clearForm();
-    this.showNotification('Link updated successfully!', 'success');
-  }
 
   // UI Rendering
   async renderLinks() {
@@ -915,12 +894,28 @@ class PhilCard {
   }
 
   // Handle form submission properly
-  handleFormSubmit() {
+  async handleFormSubmit() {
     const form = document.getElementById('addLinkForm');
     const editId = form.dataset.editId;
     
     if (editId) {
-      this.updateLink(editId);
+      // Get form data
+      const formData = new FormData(form);
+      const linkData = {
+        title: formData.get('title'),
+        subtitle: formData.get('subtitle'),
+        url: formData.get('url'),
+        iconType: formData.get('iconType') || 'simple',
+        iconName: formData.get('iconName') || 'link'
+      };
+      
+      // Call the async updateLink method
+      const success = await this.updateLink(editId, linkData);
+      if (success) {
+        this.hideModal();
+        this.clearForm();
+        this.showNotification('Link updated successfully!', 'success');
+      }
     } else {
       this.addLink();
     }

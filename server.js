@@ -414,6 +414,78 @@ app.post('/api/profile/avatar', authenticateAdmin, upload.single('avatar'), asyn
   }
 });
 
+// Update settings (requires auth)
+app.put('/api/settings', authenticateAdmin, async (req, res) => {
+  const { settings } = req.body;
+  
+  try {
+    const config = await loadConfig();
+    if (!config) {
+      return res.status(500).json({ error: 'Failed to load config' });
+    }
+    
+    // Update settings data
+    config.settings = {
+      ...config.settings,
+      ...settings
+    };
+    
+    const saved = await saveConfig(config);
+    if (!saved) {
+      return res.status(500).json({ error: 'Failed to save settings' });
+    }
+    
+    res.json({ 
+      success: true, 
+      settings: config.settings 
+    });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Upload background image (requires auth)
+app.post('/api/settings/background', authenticateAdmin, upload.single('background'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const config = await loadConfig();
+    if (!config) {
+      return res.status(500).json({ error: 'Failed to load config' });
+    }
+    
+    // Remove old background file if it exists
+    if (config.settings && config.settings.backgroundImageUrl && config.settings.backgroundImageUrl.startsWith('/uploads/')) {
+      const oldPath = path.join(__dirname, config.settings.backgroundImageUrl);
+      try {
+        await fs.unlink(oldPath);
+      } catch (error) {
+        // Ignore error if file doesn't exist
+      }
+    }
+    
+    // Update config with new background URL
+    if (!config.settings) config.settings = {};
+    config.settings.backgroundImageUrl = '/uploads/' + req.file.filename;
+    
+    const saved = await saveConfig(config);
+    if (!saved) {
+      return res.status(500).json({ error: 'Failed to save background image' });
+    }
+    
+    res.json({ 
+      success: true, 
+      imageUrl: config.settings.backgroundImageUrl
+    });
+  } catch (error) {
+    console.error('Error uploading background image:', error);
+    res.status(500).json({ error: 'Failed to upload background image' });
+  }
+});
+
 // Bulk operations (requires auth)
 app.post('/api/links/bulk', authenticateAdmin, async (req, res) => {
   const { operation, links: newLinks } = req.body;
