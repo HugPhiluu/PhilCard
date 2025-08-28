@@ -402,16 +402,6 @@ textarea {
   min-height: 60px; /* Ensures there's always a drop zone */
 }
 
-.sortable-container.drag-active {
-  background: linear-gradient(180deg, 
-    rgba(124, 58, 237, 0.08), 
-    rgba(124, 58, 237, 0.04));
-  border-radius: var(--radius);
-  border: 2px dashed rgba(124, 58, 237, 0.3);
-  padding: 8px;
-  margin: -8px;
-}
-
 .link-item.dragging {
   opacity: 0.6;
   transform: rotate(2deg) scale(1.02);
