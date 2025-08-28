@@ -52,7 +52,7 @@ cd /var/www/philcard
 git pull origin main  # or upload files manually
 
 # 3. Update dependencies (if needed)
-npm install --production
+npm install --omit=dev
 
 # 4. Restart application
 pm2 restart philcard
