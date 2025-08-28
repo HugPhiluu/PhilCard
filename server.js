@@ -50,20 +50,37 @@ const upload = multer({
 app.use(helmet({
   contentSecurityPolicy: false, // Allow inline scripts for simplicity
 }));
+
+// Trust proxy - specific configuration for rate limiting compatibility
+app.set('trust proxy', 1); // Trust first proxy
+
 app.use(cors());
 app.use(express.json());
 
-// Rate limiting
+// Rate limiting with explicit trust proxy configuration
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  trustProxy: 1, // Must match app trust proxy setting
+  keyGenerator: (req) => {
+    // Use the real IP from the proxy headers if available, otherwise fallback to connection IP
+    return req.ip || req.connection.remoteAddress || 'unknown';
+  }
 });
 app.use('/api/', limiter);
 
 // Auth rate limiting (stricter)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5 // limit each IP to 5 auth requests per windowMs
+  max: 5, // limit each IP to 5 auth requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  trustProxy: 1, // Must match app trust proxy setting
+  keyGenerator: (req) => {
+    return req.ip || req.connection.remoteAddress || 'unknown';
+  }
 });
 
 // Serve static files

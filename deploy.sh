@@ -13,8 +13,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-APP_DIR="/var/www/philcard"
-BACKUP_DIR="/var/backups/philcard"
+APP_DIR="/home/ubuntu/philcard"
+BACKUP_DIR="/home/ubuntu/backups/philcard"
 PM2_APP_NAME="philcard"
 
 echo -e "${BLUE}🚀 Starting PhilCard deployment...${NC}"
@@ -32,8 +32,7 @@ if ! command -v pm2 &> /dev/null; then
 fi
 
 # Create backup directory
-sudo mkdir -p "$BACKUP_DIR"
-sudo chown $USER:$USER "$BACKUP_DIR"
+mkdir -p "$BACKUP_DIR"
 
 # Create backup with timestamp
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -46,18 +45,60 @@ echo -e "${GREEN}✓ Backup created at: $BACKUP_PATH${NC}"
 # Change to app directory
 cd "$APP_DIR"
 
+# Check if package.json exists, if not create it
+if [ ! -f "package.json" ]; then
+    echo -e "${YELLOW}📋 Creating package.json...${NC}"
+    cat > package.json << 'EOF'
+{
+  "name": "philcard",
+  "version": "1.0.0",
+  "description": "Modern one-page links site with persistent data storage and profile picture cropping",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "setup-password": "node setup-password.js",
+    "quick-password": "node quick-password.js",
+    "deploy": "chmod +x deploy.sh && ./deploy.sh",
+    "quick-update": "chmod +x quick-update.sh && ./quick-update.sh"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "bcryptjs": "^2.4.3",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "links",
+    "profile",
+    "portfolio"
+  ],
+  "author": "Philuu",
+  "license": "MIT"
+}
+EOF
+    echo -e "${GREEN}✓ package.json created${NC}"
+fi
+
 # Pull latest changes from git (if using git)
 if [ -d ".git" ]; then
     echo -e "${YELLOW}📥 Pulling latest changes from git...${NC}"
-    git pull origin main
+    git pull origin main 2>/dev/null || {
+        echo -e "${YELLOW}⚠️  Git pull failed or no remote configured. Continuing with local files...${NC}"
+    }
     echo -e "${GREEN}✓ Code updated${NC}"
 else
-    echo -e "${YELLOW}⚠️  Not a git repository. Please upload your files manually.${NC}"
+    echo -e "${YELLOW}⚠️  Not a git repository. Using local files.${NC}"
 fi
 
 # Install/update dependencies
 echo -e "${YELLOW}📦 Installing/updating dependencies...${NC}"
-npm install --production
+npm install --omit=dev
 echo -e "${GREEN}✓ Dependencies updated${NC}"
 
 # Check if app is currently running
@@ -82,7 +123,7 @@ if pm2 list | grep "$PM2_APP_NAME" | grep -q "online"; then
     
     # Clean up old backups (keep last 5)
     echo -e "${YELLOW}🧹 Cleaning up old backups...${NC}"
-    ls -t "$BACKUP_DIR" | tail -n +6 | xargs -r rm -rf
+    find "$BACKUP_DIR" -name "backup_*" -type d | sort -r | tail -n +6 | xargs -r rm -rf 2>/dev/null || true
     echo -e "${GREEN}✓ Cleanup complete${NC}"
     
 else
