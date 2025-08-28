@@ -154,7 +154,25 @@
             <label for="profileAvatarFile">Profile Picture</label>
             <input type="file" id="profileAvatarFile" accept="image/*" style="margin-bottom: 8px;">
             <div class="small">JPG, PNG, GIF, WebP, etc. - Upload any size image!</div>
+            
+            <!-- Image Cropper -->
+            <div id="imageCropper" style="display: none; margin-top: 12px;">
+              <div class="cropper-header">
+                <strong>Crop your image</strong>
+                <div class="small">Drag to move, use corner handles to resize (1:1 ratio)</div>
+              </div>
+              <div class="cropper-container" style="position: relative; display: inline-block; margin: 12px 0;">
+                <img id="cropperImage" style="display: block; max-width: 300px; max-height: 300px;">
+              </div>
+              <div class="cropper-actions" style="margin-top: 8px;">
+                <button type="button" class="btn" onclick="philCard.hideImageCropper()">Cancel</button>
+                <button type="button" class="btn primary" onclick="philCard.cropAndUploadImage()">Crop & Upload</button>
+              </div>
+            </div>
+            
+            <!-- Preview -->
             <div id="avatarPreview" style="margin-top: 8px; display: none;">
+              <div class="small" style="margin-bottom: 4px;">Preview:</div>
               <img id="avatarPreviewImg" style="width: 64px; height: 64px; border-radius: 12px; object-fit: cover;">
             </div>
           </div>

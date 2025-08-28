@@ -433,3 +433,138 @@ footer {
     flex-direction: column;
   }
 }
+
+/* Image Cropper Styles */
+.cropper-header {
+  margin-bottom: 8px;
+}
+
+.cropper-header strong {
+  display: block;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.cropper-container {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 8px;
+  display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.cropper-container img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.crop-overlay {
+  position: absolute;
+  pointer-events: none;
+}
+
+.crop-box {
+  position: absolute;
+  border: 2px solid #007bff;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  pointer-events: all;
+  cursor: move;
+  user-select: none;
+}
+
+.crop-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 2px solid #007bff;
+  border-radius: 50%;
+  pointer-events: all;
+}
+
+.crop-handle-nw {
+  top: -6px;
+  left: -6px;
+  cursor: nw-resize;
+}
+
+.crop-handle-ne {
+  top: -6px;
+  right: -6px;
+  cursor: ne-resize;
+}
+
+.crop-handle-sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: sw-resize;
+}
+
+.crop-handle-se {
+  bottom: -6px;
+  right: -6px;
+  cursor: se-resize;
+}
+
+.cropper-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.cropper-actions .btn {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* Smooth transitions for cropper */
+.crop-box {
+  transition: none;
+}
+
+.crop-box:not(.dragging):not(.resizing) {
+  transition: all 0.1s ease;
+}
+
+/* Mobile-friendly cropper styles */
+@media (max-width: 500px) {
+  .cropper-container {
+    max-width: 100%;
+  }
+  
+  .crop-handle {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .crop-handle-nw {
+    top: -8px;
+    left: -8px;
+  }
+  
+  .crop-handle-ne {
+    top: -8px;
+    right: -8px;
+  }
+  
+  .crop-handle-sw {
+    bottom: -8px;
+    left: -8px;
+  }
+  
+  .crop-handle-se {
+    bottom: -8px;
+    right: -8px;
+  }
+  
+  .cropper-actions {
+    flex-direction: column;
+  }
+  
+  .cropper-actions .btn {
+    width: 100%;
+  }
+}

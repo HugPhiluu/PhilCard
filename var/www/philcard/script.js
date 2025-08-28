@@ -200,6 +200,9 @@ class PhilCard {
       const preview = document.getElementById('avatarPreview');
       if (fileInput) fileInput.value = '';
       if (preview) preview.style.display = 'none';
+      
+      // Clean up image cropper
+      this.hideImageCropper();
     }
   }
 
@@ -521,8 +524,10 @@ class PhilCard {
     }
     if (avatarElement) {
       if (profile.avatarUrl) {
-        // Show uploaded image
-        avatarElement.innerHTML = `<img src="${profile.avatarUrl}" alt="Profile picture">`;
+        // Show uploaded image with cache busting for immediate updates
+        const cacheBuster = Date.now();
+        const imageUrl = profile.avatarUrl + (profile.avatarUrl.includes('?') ? '&' : '?') + 'v=' + cacheBuster;
+        avatarElement.innerHTML = `<img src="${imageUrl}" alt="Profile picture" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">`;
       } else if (profile.avatar) {
         // Show text avatar
         avatarElement.innerHTML = profile.avatar;
@@ -962,17 +967,11 @@ class PhilCard {
 
     const form = document.getElementById('profileForm');
     const formData = new FormData(form);
-    const fileInput = document.getElementById('profileAvatarFile');
 
     try {
-      // First update text profile data
+      // Update text profile data only (image is handled separately via cropper)
       const profileSuccess = await this.updateProfile(formData);
       
-      // Then upload avatar if file is selected
-      if (fileInput.files[0] && profileSuccess) {
-        await this.uploadProfilePicture(fileInput.files[0]);
-      }
-
       if (profileSuccess) {
         this.hideProfileModal();
       }
@@ -985,27 +984,417 @@ class PhilCard {
   // Handle avatar file selection and preview
   handleAvatarFileSelect(fileInput) {
     const file = fileInput.files[0];
-    const preview = document.getElementById('avatarPreview');
-    const previewImg = document.getElementById('avatarPreviewImg');
 
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
         this.showNotification('Please select an image file', 'error');
         fileInput.value = '';
-        preview.style.display = 'none';
+        this.hideImageCropper();
         return;
       }
 
-      // Show preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        previewImg.src = e.target.result;
-        preview.style.display = 'block';
-      };
-      reader.readAsDataURL(file);
+      // Show the image cropper
+      this.showImageCropper(file);
     } else {
-      preview.style.display = 'none';
+      this.hideImageCropper();
+    }
+  }
+
+  // Image cropping functionality
+  showImageCropper(file) {
+    const cropperContainer = document.getElementById('imageCropper');
+    const cropperImage = document.getElementById('cropperImage');
+    
+    if (!cropperContainer || !cropperImage) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      cropperImage.src = e.target.result;
+      cropperContainer.style.display = 'block';
+      
+      // Initialize cropper after image loads
+      cropperImage.onload = () => {
+        this.initializeCropper(cropperImage);
+      };
+    };
+    reader.readAsDataURL(file);
+  }
+
+  hideImageCropper() {
+    const cropperContainer = document.getElementById('imageCropper');
+    if (cropperContainer) {
+      cropperContainer.style.display = 'none';
+    }
+    this.destroyCropper();
+  }
+
+  initializeCropper(imageElement) {
+    // Clean up any existing cropper
+    this.destroyCropper();
+
+    const container = imageElement.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    
+    // Calculate display dimensions while maintaining aspect ratio
+    const maxWidth = 300;
+    const maxHeight = 300;
+    const imgAspectRatio = imageElement.naturalWidth / imageElement.naturalHeight;
+    
+    let displayWidth, displayHeight;
+    if (imgAspectRatio > 1) {
+      // Landscape
+      displayWidth = Math.min(maxWidth, imageElement.naturalWidth);
+      displayHeight = displayWidth / imgAspectRatio;
+    } else {
+      // Portrait or square
+      displayHeight = Math.min(maxHeight, imageElement.naturalHeight);
+      displayWidth = displayHeight * imgAspectRatio;
+    }
+
+    imageElement.style.width = displayWidth + 'px';
+    imageElement.style.height = displayHeight + 'px';
+
+    // Create crop overlay
+    this.createCropOverlay(container, displayWidth, displayHeight, imageElement);
+  }
+
+  createCropOverlay(container, displayWidth, displayHeight, imageElement) {
+    // Create overlay div
+    const overlay = document.createElement('div');
+    overlay.className = 'crop-overlay';
+    overlay.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: ${displayWidth}px;
+      height: ${displayHeight}px;
+      pointer-events: none;
+      z-index: 10;
+    `;
+
+    // Create crop selection box
+    const cropBox = document.createElement('div');
+    cropBox.className = 'crop-box';
+    
+    // Start with a square in the center
+    const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
+    const cropX = (displayWidth - cropSize) / 2;
+    const cropY = (displayHeight - cropSize) / 2;
+
+    cropBox.style.cssText = `
+      position: absolute;
+      left: ${cropX}px;
+      top: ${cropY}px;
+      width: ${cropSize}px;
+      height: ${cropSize}px;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+      pointer-events: all;
+      cursor: move;
+    `;
+
+    // Add resize handles
+    const handles = ['nw', 'ne', 'sw', 'se'];
+    handles.forEach(handle => {
+      const handleDiv = document.createElement('div');
+      handleDiv.className = `crop-handle crop-handle-${handle}`;
+      handleDiv.style.cssText = `
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        background: #fff;
+        border: 2px solid #007bff;
+        border-radius: 50%;
+        cursor: ${handle}-resize;
+      `;
+
+      // Position handles
+      if (handle.includes('n')) handleDiv.style.top = '-6px';
+      if (handle.includes('s')) handleDiv.style.bottom = '-6px';
+      if (handle.includes('w')) handleDiv.style.left = '-6px';
+      if (handle.includes('e')) handleDiv.style.right = '-6px';
+
+      cropBox.appendChild(handleDiv);
+    });
+
+    overlay.appendChild(cropBox);
+    container.appendChild(overlay);
+
+    // Store crop data
+    this.cropData = {
+      overlay,
+      cropBox,
+      imageElement,
+      displayWidth,
+      displayHeight,
+      isDragging: false,
+      isResizing: false,
+      startX: 0,
+      startY: 0,
+      startCropX: cropX,
+      startCropY: cropY,
+      startCropWidth: cropSize,
+      startCropHeight: cropSize
+    };
+
+    // Add event listeners
+    this.addCropEventListeners();
+  }
+
+  addCropEventListeners() {
+    const { cropBox } = this.cropData;
+
+    // Mouse events
+    cropBox.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('crop-handle')) {
+        this.startResize(e);
+      } else {
+        this.startDrag(e);
+      }
+    });
+
+    // Touch events for mobile
+    cropBox.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const mouseEvent = new MouseEvent('mousedown', {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+      
+      if (e.target.classList.contains('crop-handle')) {
+        this.startResize(mouseEvent);
+      } else {
+        this.startDrag(mouseEvent);
+      }
+    });
+
+    // Global mouse events
+    document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    document.addEventListener('mouseup', (e) => this.onMouseUp(e));
+    
+    // Global touch events
+    document.addEventListener('touchmove', (e) => {
+      if (this.cropData && (this.cropData.isDragging || this.cropData.isResizing)) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent('mousemove', {
+          clientX: touch.clientX,
+          clientY: touch.clientY
+        });
+        this.onMouseMove(mouseEvent);
+      }
+    });
+    
+    document.addEventListener('touchend', (e) => {
+      const mouseEvent = new MouseEvent('mouseup', {});
+      this.onMouseUp(mouseEvent);
+    });
+  }
+
+  startDrag(e) {
+    this.cropData.isDragging = true;
+    this.cropData.startX = e.clientX;
+    this.cropData.startY = e.clientY;
+    this.cropData.startCropX = parseFloat(this.cropData.cropBox.style.left);
+    this.cropData.startCropY = parseFloat(this.cropData.cropBox.style.top);
+    e.preventDefault();
+  }
+
+  startResize(e) {
+    this.cropData.isResizing = true;
+    this.cropData.resizeHandle = e.target.className.split(' ').find(c => c.includes('crop-handle-')).split('-')[2];
+    this.cropData.startX = e.clientX;
+    this.cropData.startY = e.clientY;
+    const rect = this.cropData.cropBox.getBoundingClientRect();
+    const containerRect = this.cropData.imageElement.getBoundingClientRect();
+    this.cropData.startCropX = rect.left - containerRect.left;
+    this.cropData.startCropY = rect.top - containerRect.top;
+    this.cropData.startCropWidth = rect.width;
+    this.cropData.startCropHeight = rect.height;
+    e.preventDefault();
+  }
+
+  onMouseMove(e) {
+    if (!this.cropData) return;
+
+    if (this.cropData.isDragging) {
+      const deltaX = e.clientX - this.cropData.startX;
+      const deltaY = e.clientY - this.cropData.startY;
+      
+      let newX = this.cropData.startCropX + deltaX;
+      let newY = this.cropData.startCropY + deltaY;
+
+      // Constrain to image bounds
+      const cropWidth = parseFloat(this.cropData.cropBox.style.width);
+      const cropHeight = parseFloat(this.cropData.cropBox.style.height);
+      
+      newX = Math.max(0, Math.min(newX, this.cropData.displayWidth - cropWidth));
+      newY = Math.max(0, Math.min(newY, this.cropData.displayHeight - cropHeight));
+
+      this.cropData.cropBox.style.left = newX + 'px';
+      this.cropData.cropBox.style.top = newY + 'px';
+    } else if (this.cropData.isResizing) {
+      this.handleResize(e);
+    }
+  }
+
+  handleResize(e) {
+    const deltaX = e.clientX - this.cropData.startX;
+    const deltaY = e.clientY - this.cropData.startY;
+    const handle = this.cropData.resizeHandle;
+
+    let newX = this.cropData.startCropX;
+    let newY = this.cropData.startCropY;
+    let newWidth = this.cropData.startCropWidth;
+    let newHeight = this.cropData.startCropHeight;
+
+    // Calculate new dimensions based on handle
+    if (handle.includes('e')) newWidth += deltaX;
+    if (handle.includes('w')) { newWidth -= deltaX; newX += deltaX; }
+    if (handle.includes('s')) newHeight += deltaY;
+    if (handle.includes('n')) { newHeight -= deltaY; newY += deltaY; }
+
+    // Maintain 1:1 aspect ratio
+    const size = Math.min(newWidth, newHeight);
+    newWidth = size;
+    newHeight = size;
+
+    // Adjust position for corner handles to maintain aspect ratio
+    if (handle.includes('w')) newX = this.cropData.startCropX + (this.cropData.startCropWidth - newWidth);
+    if (handle.includes('n')) newY = this.cropData.startCropY + (this.cropData.startCropHeight - newHeight);
+
+    // Constrain to image bounds
+    const minSize = 50;
+    newWidth = Math.max(minSize, Math.min(newWidth, this.cropData.displayWidth - newX));
+    newHeight = Math.max(minSize, Math.min(newHeight, this.cropData.displayHeight - newY));
+    newX = Math.max(0, Math.min(newX, this.cropData.displayWidth - newWidth));
+    newY = Math.max(0, Math.min(newY, this.cropData.displayHeight - newHeight));
+
+    // Keep it square
+    const finalSize = Math.min(newWidth, newHeight);
+    this.cropData.cropBox.style.left = newX + 'px';
+    this.cropData.cropBox.style.top = newY + 'px';
+    this.cropData.cropBox.style.width = finalSize + 'px';
+    this.cropData.cropBox.style.height = finalSize + 'px';
+  }
+
+  onMouseUp(e) {
+    if (this.cropData) {
+      this.cropData.isDragging = false;
+      this.cropData.isResizing = false;
+    }
+  }
+
+  destroyCropper() {
+    if (this.cropData) {
+      if (this.cropData.overlay && this.cropData.overlay.parentNode) {
+        this.cropData.overlay.parentNode.removeChild(this.cropData.overlay);
+      }
+      this.cropData = null;
+    }
+  }
+
+  async cropAndUploadImage() {
+    if (!this.cropData) {
+      this.showNotification('No image to crop', 'error');
+      return;
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Set output size to 512x512
+      canvas.width = 512;
+      canvas.height = 512;
+
+      // Get crop coordinates
+      const cropBox = this.cropData.cropBox;
+      const cropX = parseFloat(cropBox.style.left);
+      const cropY = parseFloat(cropBox.style.top);
+      const cropSize = parseFloat(cropBox.style.width);
+
+      // Calculate source coordinates on the original image
+      const scaleX = this.cropData.imageElement.naturalWidth / this.cropData.displayWidth;
+      const scaleY = this.cropData.imageElement.naturalHeight / this.cropData.displayHeight;
+      
+      const sourceX = cropX * scaleX;
+      const sourceY = cropY * scaleY;
+      const sourceSize = cropSize * scaleX;
+
+      // Draw the cropped and resized image
+      ctx.drawImage(
+        this.cropData.imageElement,
+        sourceX, sourceY, sourceSize, sourceSize,
+        0, 0, 512, 512
+      );
+
+      // Try WebP first, fallback to JPEG
+      let imageBlob;
+      let fileName;
+      let mimeType;
+      let quality = 0.85; // High quality by default
+
+      // Check WebP support
+      const webpSupported = canvas.toDataURL('image/webp').indexOf('image/webp') === 5;
+      
+      if (webpSupported) {
+        // WebP provides better compression
+        imageBlob = await new Promise(resolve => {
+          canvas.toBlob(resolve, 'image/webp', quality);
+        });
+        fileName = 'avatar.webp';
+        mimeType = 'image/webp';
+      } else {
+        // Fallback to JPEG with slightly higher quality since it's less efficient
+        quality = 0.90;
+        imageBlob = await new Promise(resolve => {
+          canvas.toBlob(resolve, 'image/jpeg', quality);
+        });
+        fileName = 'avatar.jpg';
+        mimeType = 'image/jpeg';
+      }
+
+      // Log compression info for debugging
+      if (imageBlob) {
+        const originalSize = this.cropData.imageElement.src.length * 0.75; // Rough estimate
+        const compressedSize = imageBlob.size;
+        console.log(`Image compressed: ${Math.round(originalSize / 1024)}KB → ${Math.round(compressedSize / 1024)}KB (${Math.round((1 - compressedSize / originalSize) * 100)}% reduction)`);
+      }
+
+      if (imageBlob) {
+        // Show loading state
+        this.showNotification('Processing and uploading image...', 'info');
+        
+        // Create a File object from the blob
+        const croppedFile = new File([imageBlob], fileName, { type: mimeType });
+        
+        // Upload the cropped image
+        const success = await this.uploadProfilePicture(croppedFile);
+        
+        if (success) {
+          this.hideImageCropper();
+          // Update preview with the cropped image
+          this.showCroppedPreview(canvas.toDataURL(mimeType, quality));
+        }
+      } else {
+        this.showNotification('Failed to process image', 'error');
+      }
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      this.showNotification('Failed to crop image', 'error');
+    }
+  }
+
+  showCroppedPreview(dataUrl) {
+    const preview = document.getElementById('avatarPreview');
+    const previewImg = document.getElementById('avatarPreviewImg');
+    
+    if (preview && previewImg) {
+      previewImg.src = dataUrl;
+      preview.style.display = 'block';
     }
   }
 }
