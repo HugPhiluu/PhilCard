@@ -19,7 +19,7 @@ class PhilCard {
     this.updateUIForAuthState();
   }
 
-  // Load Simple Icons from CDN
+  // Load Simple Icons from CDN with brand color support
   async loadSimpleIcon(iconName) {
     if (!iconName) return null;
     
@@ -29,17 +29,61 @@ class PhilCard {
     }
     
     try {
+      // Use the CDN that provides the icon with its official brand color
       const response = await fetch(`https://cdn.simpleicons.org/${iconName.toLowerCase()}`);
       if (response.ok) {
         const svgContent = await response.text();
-        this.iconCache.set(iconName, svgContent);
-        return svgContent;
+        
+        // Extract the brand color from the SVG's fill attribute
+        const brandColor = this.extractBrandColor(svgContent);
+        
+        // Store both SVG content and brand color in cache
+        const iconData = {
+          svg: svgContent,
+          brandColor: brandColor
+        };
+        
+        this.iconCache.set(iconName, iconData);
+        return iconData;
       }
     } catch (error) {
       console.warn(`Could not load icon: ${iconName}`, error);
     }
     
     return null;
+  }
+
+  // Extract brand color from SVG content
+  extractBrandColor(svgContent) {
+    try {
+      // Create a temporary DOM element to parse the SVG
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+      
+      if (svgElement) {
+        // Look for fill attribute on the SVG or its children
+        let fillColor = svgElement.getAttribute('fill');
+        
+        if (!fillColor || fillColor === 'currentColor' || fillColor === 'none') {
+          // Check the first path element if SVG doesn't have fill
+          const pathElement = svgElement.querySelector('path');
+          if (pathElement) {
+            fillColor = pathElement.getAttribute('fill');
+          }
+        }
+        
+        // If we found a valid hex color, return it
+        if (fillColor && fillColor.startsWith('#')) {
+          return fillColor;
+        }
+      }
+    } catch (error) {
+      console.warn('Error extracting brand color:', error);
+    }
+    
+    // Return a default color if extraction fails
+    return '#ffffff';
   }
 
   // Authentication Management
@@ -566,6 +610,30 @@ class PhilCard {
         url: 'https://github.com/example',
         iconType: 'simple',
         iconName: 'github'
+      },
+      {
+        id: 2,
+        title: 'Twitter',
+        subtitle: 'Follow me',
+        url: 'https://twitter.com/example',
+        iconType: 'simple',
+        iconName: 'twitter'
+      },
+      {
+        id: 3,
+        title: 'YouTube',
+        subtitle: 'My videos',
+        url: 'https://youtube.com/example',
+        iconType: 'simple',
+        iconName: 'youtube'
+      },
+      {
+        id: 4,
+        title: 'Spotify',
+        subtitle: 'My playlists',
+        url: 'https://spotify.com/example',
+        iconType: 'simple',
+        iconName: 'spotify'
       }
     ];
   }
@@ -667,6 +735,9 @@ class PhilCard {
     const container = document.querySelector('.links');
     if (!container) return;
 
+    // Clean up existing icon glow styles
+    this.cleanupIconGlowStyles();
+
     // Render links with placeholders first
     container.innerHTML = this.links.map(link => `
       <div class="link-item" data-link-id="${link.id}">
@@ -703,22 +774,86 @@ class PhilCard {
     this.updateUIForAuthState();
   }
 
+  // Clean up icon glow styles
+  cleanupIconGlowStyles() {
+    // Remove all existing icon glow style elements
+    const existingStyles = document.querySelectorAll('style[id^="icon-glow-"]');
+    existingStyles.forEach(style => style.remove());
+  }
+
   // Load and update individual icon
   async loadAndUpdateIcon(link) {
     if (link.iconType === 'simple' && link.iconName) {
-      const svgContent = await this.loadSimpleIcon(link.iconName);
+      const iconData = await this.loadSimpleIcon(link.iconName);
       const iconContainer = document.getElementById(`icon-${link.id}`);
       
-      if (svgContent && iconContainer) {
+      if (iconData && iconContainer) {
         // Clean up the SVG and set proper attributes
-        const cleanSvg = svgContent
+        const cleanSvg = iconData.svg
           .replace(/width="[^"]*"/g, 'width="20"')
           .replace(/height="[^"]*"/g, 'height="20"')
           .replace(/fill="[^"]*"/g, 'fill="currentColor"');
         
         iconContainer.innerHTML = cleanSvg;
+        
+        // Apply brand color glow effect
+        if (iconData.brandColor) {
+          this.applyBrandColorGlow(iconContainer, iconData.brandColor);
+        }
       }
     }
+  }
+
+  // Apply brand color glow effect to an icon
+  applyBrandColorGlow(iconContainer, brandColor) {
+    const linkItem = iconContainer.closest('.link-item');
+    if (!linkItem) return;
+
+    // Create CSS custom properties for this specific link
+    const linkId = linkItem.getAttribute('data-link-id');
+    
+    // Convert hex to RGB for glow effects
+    const rgb = this.hexToRgb(brandColor);
+    if (!rgb) return;
+
+    // Create a style element for this specific icon's glow
+    let styleElement = document.getElementById(`icon-glow-${linkId}`);
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = `icon-glow-${linkId}`;
+      document.head.appendChild(styleElement);
+    }
+
+    // Create dynamic CSS for the brand color glow
+    const glowCSS = `
+      .link-item[data-link-id="${linkId}"]:hover .icon-wrap svg {
+        filter: drop-shadow(0 0 3px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)) 
+                drop-shadow(0 0 6px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8))
+                drop-shadow(0 0 12px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6))
+                drop-shadow(0 0 18px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)) !important;
+      }
+    `;
+
+    styleElement.textContent = glowCSS;
+  }
+
+  // Convert hex color to RGB
+  hexToRgb(hex) {
+    // Remove # if present
+    hex = hex.replace('#', '');
+    
+    // Handle 3-digit hex codes
+    if (hex.length === 3) {
+      hex = hex.split('').map(char => char + char).join('');
+    }
+    
+    if (hex.length !== 6) return null;
+    
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    return { r, g, b };
   }
 
   // Get default icon HTML (fallback)
@@ -974,17 +1109,17 @@ class PhilCard {
     if (!previewContainer) return;
 
     if (iconName) {
-      const svgContent = await this.loadSimpleIcon(iconName);
-      if (svgContent) {
+      const iconData = await this.loadSimpleIcon(iconName);
+      if (iconData) {
         // Clean up the SVG for preview
-        const cleanSvg = svgContent
+        const cleanSvg = iconData.svg
           .replace(/width="[^"]*"/g, 'width="20"')
           .replace(/height="[^"]*"/g, 'height="20"')
           .replace(/fill="[^"]*"/g, 'fill="currentColor"');
         
         previewContainer.innerHTML = cleanSvg;
         previewContainer.style.display = 'flex';
-        previewContainer.style.color = 'rgba(255, 255, 255, 0.8)';
+        previewContainer.style.color = iconData.brandColor || 'rgba(255, 255, 255, 0.8)';
         return;
       }
     }
@@ -996,6 +1131,7 @@ class PhilCard {
   async refreshIcons() {
     this.showNotification('Refreshing icons...', 'info');
     this.iconCache.clear(); // Clear cache
+    this.cleanupIconGlowStyles(); // Clean up existing glow styles
     await this.renderLinks(); // Re-render with fresh icons
     this.showNotification('Icons refreshed!', 'success');
   }
